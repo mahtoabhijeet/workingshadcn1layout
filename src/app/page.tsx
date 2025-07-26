@@ -10,10 +10,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { isSupabaseReady } from "@/lib/supabase";
 import MapboxMap from "@/components/MapboxMap";
 import DynamicPanel from "@/components/DynamicPanel";
+import TabbedBottomPanel from "@/components/TabbedBottomPanel";
+import FactbookPanel from "@/components/FactbookPanel";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState("stories");
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedType, setSelectedType] = useState("");
   const { user, loading: authLoading } = useAuth();
   const { data: peaks, loading: peaksLoading } = usePeaks();
   const { data: trails, loading: trailsLoading } = useTrails();
@@ -28,6 +32,17 @@ export default function Home() {
 
   const isLoading = peaksLoading || trailsLoading || storiesLoading || expeditionsLoading;
   const supabaseConfigured = isSupabaseReady();
+
+  // Handler functions for the new components
+  const handleItemSelect = (item: any, type: string) => {
+    setSelectedItem(item);
+    setSelectedType(type);
+  };
+
+  const handleMapUpdate = (coordinates: [number, number]) => {
+    // This will be used to update the map center when items scroll into view
+    console.log('Map should center on:', coordinates);
+  };
 
   // Show configuration message if Supabase is not set up
   if (!supabaseConfigured) {
@@ -457,73 +472,25 @@ export default function Home() {
 
         {/* Content Area - Map with Dynamic Panels */}
         <div className="flex-1 bg-gray-50 p-4">
-          <div className="h-full grid grid-cols-[70%_30%] grid-rows-[70%_30%] gap-4">
-            {/* Map Area - Takes up 70% width, 70% height */}
+          <div className="h-full grid grid-cols-[70%_30%] grid-rows-[60%_40%] gap-4">
+            {/* Map Area - Takes up 70% width, 60% height */}
             <div className="row-span-1 col-span-1">
               <MapboxMap />
             </div>
             
             {/* Right Panel - Takes up 30% width, full height */}
             <div className="row-span-2 col-span-1">
-              <DynamicPanel 
-                title="Trail Information"
-                content={
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <Route className="w-4 h-4 text-teal-600" />
-                      <span className="text-sm font-medium">Active Trail</span>
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      <p>Select a trail from the map to view detailed information, elevation profile, and difficulty rating.</p>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Distance:</span>
-                        <span className="font-medium">--</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Elevation Gain:</span>
-                        <span className="font-medium">--</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Difficulty:</span>
-                        <span className="font-medium">--</span>
-                      </div>
-                    </div>
-                  </div>
-                }
+              <FactbookPanel 
+                selectedItem={selectedItem}
+                selectedType={selectedType}
               />
             </div>
             
-            {/* Bottom Panel - Takes up 70% width, 30% height */}
+            {/* Bottom Panel - Takes up 70% width, 40% height */}
             <div className="row-span-1 col-span-1">
-              <DynamicPanel 
-                title="Peak Details"
-                content={
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <Mountain className="w-4 h-4 text-teal-600" />
-                      <span className="text-sm font-medium">Selected Peak</span>
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      <p>Click on a peak marker to view elevation, climbing routes, and weather conditions.</p>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4 text-sm">
-                      <div className="text-center">
-                        <div className="font-medium">--</div>
-                        <div className="text-gray-500">Elevation</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="font-medium">--</div>
-                        <div className="text-gray-500">Difficulty</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="font-medium">--</div>
-                        <div className="text-gray-500">Weather</div>
-                      </div>
-                    </div>
-                  </div>
-                }
+              <TabbedBottomPanel 
+                onItemSelect={handleItemSelect}
+                onMapUpdate={handleMapUpdate}
               />
             </div>
           </div>
