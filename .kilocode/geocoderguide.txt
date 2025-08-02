@@ -1,0 +1,880 @@
+# Complete Guide: Building a Geocoding Feature with React-Map-GL
+
+This guide will walk you through creating a full-featured geocoding system with a search bar, paginated results panel, and interactive map using react-map-gl.
+
+## Table of Contents
+1. [Setup and Dependencies](#setup-and-dependencies)
+2. [Basic Map Component](#basic-map-component)
+3. [Geocoding Service Integration](#geocoding-service-integration)
+4. [Search Bar Component](#search-bar-component)
+5. [Results Panel with Pagination](#results-panel-with-pagination)
+6. [Complete Implementation](#complete-implementation)
+7. [Advanced Features](#advanced-features)
+8. [Best Practices](#best-practices)
+
+## Setup and Dependencies
+
+First, install the required packages:
+
+```bash
+npm install react-map-gl mapbox-gl
+npm install @types/mapbox-gl # if using TypeScript
+```
+
+You'll also need a Mapbox access token. Get one from [Mapbox's website](https://account.mapbox.com/access-tokens/).
+
+## Basic Map Component
+
+Start with a basic map setup:
+
+```jsx
+import React, { useState } from 'react';
+import Map, { Marker } from 'react-map-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
+
+const MAPBOX_TOKEN = 'your_mapbox_token_here';
+
+function MapComponent() {
+  const [viewState, setViewState] = useState({
+    longitude: -100,
+    latitude: 40,
+    zoom: 3.5
+  });
+
+  return (
+    <Map
+      {...viewState}
+      onMove={evt => setViewState(evt.viewState)}
+      style={{width: '100%', height: '100vh'}}
+      mapStyle="mapbox://styles/mapbox/streets-v12"
+      mapboxAccessToken={MAPBOX_TOKEN}
+    >
+      {/* Markers will go here */}
+    </Map>
+  );
+}
+```
+
+## Geocoding Service Integration
+
+Create a geocoding service that can work with various providers:
+
+```jsx
+// geocodingService.js
+class GeocodingService {
+  constructor(provider = 'mapbox', apiKey) {
+    this.provider = provider;
+    this.apiKey = apiKey;
+  }
+
+  async search(query, options = {}) {
+    const { limit = 10, proximity, bbox, country } = options;
+    
+    switch (this.provider) {
+      case 'mapbox':
+        return this.searchMapbox(query, { limit, proximity, bbox, country });
+      case 'nominatim':
+        return this.searchNominatim(query, { limit });
+      default:
+        throw new Error(`Unsupported provider: ${this.provider}`);
+    }
+  }
+
+  async searchMapbox(query, options) {
+    const { limit, proximity, bbox, country } = options;
+    let url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${this.apiKey}&limit=${limit}`;
+    
+    if (proximity) url += `&proximity=${proximity.join(',')}`;
+    if (bbox) url += `&bbox=${bbox.join(',')}`;
+    if (country) url += `&country=${country}`;
+
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      return {
+        results: data.features.map(feature => ({
+          id: feature.id,
+          name: feature.place_name,
+          coordinates: feature.center,
+          bbox: feature.bbox,
+          relevance: feature.relevance,
+          context: feature.context,
+          properties: feature.properties
+        })),
+        total: data.features.length
+      };
+    } catch (error) {
+      console.error('Geocoding error:', error);
+      return { results: [], total: 0 };
+    }
+  }
+
+  async searchNominatim(query, options) {
+    const { limit } = options;
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=${limit}&addressdetails=1`;
+
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      return {
+        results: data.map(item => ({
+          id: item.place_id,
+          name: item.display_name,
+          coordinates: [parseFloat(item.lon), parseFloat(item.lat)],
+          bbox: item.boundingbox ? [
+            parseFloat(item.boundingbox[2]), // west
+            parseFloat(item.boundingbox[0]), // south
+            parseFloat(item.boundingbox[3]), // east
+            parseFloat(item.boundingbox[1])  // north
+          ] : null,
+          relevance: parseFloat(item.importance || 0),
+          properties: {
+            type: item.type,
+            class: item.class,
+            address: item.address
+          }
+        })),
+        total: data.length
+      };
+    } catch (error) {
+      console.error('Geocoding error:', error);
+      return { results: [], total: 0 };
+    }
+  }
+}
+
+export default GeocodingService;
+```
+
+## Search Bar Component
+
+Create a search bar with debounced input and loading states:
+
+```jsx
+// SearchBar.jsx
+import React, { useState, useEffect, useCallback } from 'react';
+
+function SearchBar({ onSearch, isLoading, placeholder = "Search for places..." }) {
+  const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  // Trigger search when debounced query changes
+  useEffect(() => {
+    if (debouncedQuery.trim() && debouncedQuery.length >= 2) {
+      onSearch(debouncedQuery);
+    }
+  }, [debouncedQuery, onSearch]);
+
+  const handleInputChange = (e) => {
+    setQuery(e.target.value);
+  };
+
+  const handleClear = () => {
+    setQuery('');
+    setDebouncedQuery('');
+  };
+
+  return (
+    <div className="search-bar">
+      <div className="search-input-container">
+        <input
+          type="text"
+          value={query}
+          onChange={handleInputChange}
+          placeholder={placeholder}
+          className="search-input"
+          disabled={isLoading}
+        />
+        {isLoading && <div className="search-spinner">⏳</div>}
+        {query && !isLoading && (
+          <button onClick={handleClear} className="search-clear">
+            ✕
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default SearchBar;
+```
+
+## Results Panel with Pagination
+
+Create a results panel that handles pagination and result selection:
+
+```jsx
+// ResultsPanel.jsx
+import React from 'react';
+
+function ResultsPanel({ 
+  results, 
+  currentPage, 
+  itemsPerPage, 
+  totalResults, 
+  onPageChange, 
+  onResultClick,
+  selectedResult,
+  isVisible 
+}) {
+  const totalPages = Math.ceil(totalResults / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentResults = results.slice(startIndex, endIndex);
+
+  const generatePageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    
+    if (endPage - startPage < maxVisiblePages - 1) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+    
+    return pages;
+  };
+
+  if (!isVisible || results.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="results-panel">
+      <div className="results-header">
+        <h3>Search Results</h3>
+        <span className="results-count">
+          {totalResults} result{totalResults !== 1 ? 's' : ''} found
+        </span>
+      </div>
+
+      <div className="results-list">
+        {currentResults.map((result, index) => (
+          <div
+            key={result.id}
+            className={`result-item ${selectedResult?.id === result.id ? 'selected' : ''}`}
+            onClick={() => onResultClick(result)}
+          >
+            <div className="result-name">{result.name}</div>
+            <div className="result-coords">
+              {result.coordinates[1].toFixed(4)}, {result.coordinates[0].toFixed(4)}
+            </div>
+            {result.relevance && (
+              <div className="result-relevance">
+                Relevance: {(result.relevance * 100).toFixed(0)}%
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {totalPages > 1 && (
+        <div className="pagination">
+          <button
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="pagination-btn"
+          >
+            Previous
+          </button>
+
+          <div className="pagination-numbers">
+            {currentPage > 3 && (
+              <>
+                <button onClick={() => onPageChange(1)} className="pagination-btn">1</button>
+                {currentPage > 4 && <span className="pagination-ellipsis">...</span>}
+              </>
+            )}
+
+            {generatePageNumbers().map(page => (
+              <button
+                key={page}
+                onClick={() => onPageChange(page)}
+                className={`pagination-btn ${page === currentPage ? 'active' : ''}`}
+              >
+                {page}
+              </button>
+            ))}
+
+            {currentPage < totalPages - 2 && (
+              <>
+                {currentPage < totalPages - 3 && <span className="pagination-ellipsis">...</span>}
+                <button onClick={() => onPageChange(totalPages)} className="pagination-btn">
+                  {totalPages}
+                </button>
+              </>
+            )}
+          </div>
+
+          <button
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="pagination-btn"
+          >
+            Next
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default ResultsPanel;
+```
+
+## Complete Implementation
+
+Here's the main component that brings everything together:
+
+```jsx
+// GeocodingMap.jsx
+import React, { useState, useCallback, useRef } from 'react';
+import Map, { Marker, Popup } from 'react-map-gl';
+import SearchBar from './SearchBar';
+import ResultsPanel from './ResultsPanel';
+import GeocodingService from './geocodingService';
+import 'mapbox-gl/dist/mapbox-gl.css';
+import './GeocodingMap.css';
+
+const MAPBOX_TOKEN = 'your_mapbox_token_here';
+
+function GeocodingMap() {
+  const [viewState, setViewState] = useState({
+    longitude: -100,
+    latitude: 40,
+    zoom: 3.5
+  });
+
+  const [searchResults, setSearchResults] = useState([]);
+  const [selectedResult, setSelectedResult] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(5);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const [showPopup, setShowPopup] = useState(false);
+
+  const geocodingService = useRef(new GeocodingService('mapbox', MAPBOX_TOKEN));
+
+  const handleSearch = useCallback(async (query) => {
+    setIsLoading(true);
+    setShowResults(false);
+
+    try {
+      const response = await geocodingService.current.search(query, {
+        limit: 50, // Get more results for pagination
+        proximity: [viewState.longitude, viewState.latitude]
+      });
+
+      setSearchResults(response.results);
+      setCurrentPage(1);
+      setShowResults(response.results.length > 0);
+      setSelectedResult(null);
+      setShowPopup(false);
+    } catch (error) {
+      console.error('Search failed:', error);
+      setSearchResults([]);
+      setShowResults(false);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [viewState.longitude, viewState.latitude]);
+
+  const handleResultClick = useCallback((result) => {
+    setSelectedResult(result);
+    setShowPopup(true);
+    
+    // Fly to the selected location
+    setViewState(prev => ({
+      ...prev,
+      longitude: result.coordinates[0],
+      latitude: result.coordinates[1],
+      zoom: Math.max(prev.zoom, 12)
+    }));
+  }, []);
+
+  const handlePageChange = useCallback((newPage) => {
+    setCurrentPage(newPage);
+  }, []);
+
+  return (
+    <div className="geocoding-map-container">
+      <div className="map-controls">
+        <SearchBar
+          onSearch={handleSearch}
+          isLoading={isLoading}
+          placeholder="Search for places, addresses, or coordinates..."
+        />
+        
+        <ResultsPanel
+          results={searchResults}
+          currentPage={currentPage}
+          itemsPerPage={itemsPerPage}
+          totalResults={searchResults.length}
+          onPageChange={handlePageChange}
+          onResultClick={handleResultClick}
+          selectedResult={selectedResult}
+          isVisible={showResults}
+        />
+      </div>
+
+      <Map
+        {...viewState}
+        onMove={evt => setViewState(evt.viewState)}
+        style={{ width: '100%', height: '100vh' }}
+        mapStyle="mapbox://styles/mapbox/streets-v12"
+        mapboxAccessToken={MAPBOX_TOKEN}
+      >
+        {/* Show markers for all search results */}
+        {searchResults.map((result, index) => (
+          <Marker
+            key={result.id}
+            longitude={result.coordinates[0]}
+            latitude={result.coordinates[1]}
+            onClick={() => handleResultClick(result)}
+          >
+            <div className={`marker ${selectedResult?.id === result.id ? 'selected' : ''}`}>
+              📍
+            </div>
+          </Marker>
+        ))}
+
+        {/* Show popup for selected result */}
+        {selectedResult && showPopup && (
+          <Popup
+            longitude={selectedResult.coordinates[0]}
+            latitude={selectedResult.coordinates[1]}
+            onClose={() => setShowPopup(false)}
+            closeButton={true}
+          >
+            <div className="popup-content">
+              <h4>{selectedResult.name}</h4>
+              <p>
+                Coordinates: {selectedResult.coordinates[1].toFixed(4)}, {selectedResult.coordinates[0].toFixed(4)}
+              </p>
+              {selectedResult.properties && (
+                <div className="popup-properties">
+                  {Object.entries(selectedResult.properties).map(([key, value]) => (
+                    <p key={key}>
+                      <strong>{key}:</strong> {value}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+          </Popup>
+        )}
+      </Map>
+    </div>
+  );
+}
+
+export default GeocodingMap;
+```
+
+## Styling (CSS)
+
+Add the corresponding CSS file:
+
+```css
+/* GeocodingMap.css */
+.geocoding-map-container {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+}
+
+.map-controls {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 1000;
+  width: 400px;
+  max-width: calc(100vw - 40px);
+}
+
+.search-bar {
+  margin-bottom: 10px;
+}
+
+.search-input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-input {
+  width: 100%;
+  padding: 12px 40px 12px 12px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
+  background: white;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  transition: border-color 0.2s;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #007bff;
+}
+
+.search-spinner, .search-clear {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.search-clear:hover {
+  color: #007bff;
+}
+
+.results-panel {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  max-height: 400px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.results-header {
+  padding: 15px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.results-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #333;
+}
+
+.results-count {
+  font-size: 14px;
+  color: #666;
+}
+
+.results-list {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 250px;
+}
+
+.result-item {
+  padding: 12px 15px;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.result-item:hover {
+  background-color: #f8f9fa;
+}
+
+.result-item.selected {
+  background-color: #e3f2fd;
+  border-left: 4px solid #007bff;
+}
+
+.result-name {
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.result-coords {
+  font-size: 12px;
+  color: #666;
+  font-family: monospace;
+}
+
+.result-relevance {
+  font-size: 11px;
+  color: #888;
+  margin-top: 2px;
+}
+
+.pagination {
+  padding: 15px;
+  border-top: 1px solid #eee;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pagination-numbers {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.pagination-btn {
+  padding: 6px 12px;
+  border: 1px solid #ddd;
+  background: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: #f8f9fa;
+  border-color: #007bff;
+}
+
+.pagination-btn.active {
+  background: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-ellipsis {
+  padding: 6px;
+  color: #666;
+}
+
+.marker {
+  font-size: 20px;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.marker:hover {
+  transform: scale(1.2);
+}
+
+.marker.selected {
+  transform: scale(1.3);
+  filter: drop-shadow(0 0 5px rgba(0, 123, 255, 0.8));
+}
+
+.popup-content h4 {
+  margin: 0 0 10px 0;
+  color: #333;
+}
+
+.popup-content p {
+  margin: 5px 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.popup-properties {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #eee;
+}
+
+@media (max-width: 768px) {
+  .map-controls {
+    width: calc(100vw - 20px);
+    left: 10px;
+    right: 10px;
+  }
+  
+  .results-panel {
+    max-height: 300px;
+  }
+  
+  .pagination {
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  
+  .pagination-numbers {
+    order: 1;
+    width: 100%;
+    justify-content: center;
+  }
+}
+```
+
+## Advanced Features
+
+### 1. Coordinate Search
+Add support for coordinate-based searches:
+
+```jsx
+// Add to geocodingService.js
+parseCoordinates(query) {
+  const coordPatterns = [
+    /^(-?\d+\.?\d*),?\s*(-?\d+\.?\d*)$/, // "lat,lng" or "lat lng"
+    /^(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)$/, // Various separators
+  ];
+
+  for (const pattern of coordPatterns) {
+    const match = query.match(pattern);
+    if (match) {
+      const lat = parseFloat(match[1]);
+      const lng = parseFloat(match[2]);
+      
+      if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+        return { coordinates: [lng, lat], isCoordinate: true };
+      }
+    }
+  }
+  
+  return null;
+}
+```
+
+### 2. Search History
+Add search history functionality:
+
+```jsx
+// SearchHistory.jsx
+import React from 'react';
+
+function SearchHistory({ history, onHistoryClick, onClearHistory }) {
+  if (history.length === 0) return null;
+
+  return (
+    <div className="search-history">
+      <div className="search-history-header">
+        <span>Recent Searches</span>
+        <button onClick={onClearHistory} className="clear-history-btn">
+          Clear
+        </button>
+      </div>
+      <div className="search-history-list">
+        {history.map((item, index) => (
+          <div
+            key={index}
+            className="search-history-item"
+            onClick={() => onHistoryClick(item.query)}
+          >
+            <span className="history-query">{item.query}</span>
+            <span className="history-time">{item.timestamp}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+### 3. Filters and Options
+Add search filters:
+
+```jsx
+// SearchFilters.jsx
+import React from 'react';
+
+function SearchFilters({ filters, onFiltersChange }) {
+  const handleFilterChange = (key, value) => {
+    onFiltersChange({ ...filters, [key]: value });
+  };
+
+  return (
+    <div className="search-filters">
+      <div className="filter-group">
+        <label>Country:</label>
+        <select
+          value={filters.country || ''}
+          onChange={(e) => handleFilterChange('country', e.target.value)}
+        >
+          <option value="">All Countries</option>
+          <option value="us">United States</option>
+          <option value="ca">Canada</option>
+          <option value="gb">United Kingdom</option>
+          {/* Add more countries */}
+        </select>
+      </div>
+      
+      <div className="filter-group">
+        <label>Type:</label>
+        <select
+          value={filters.types || ''}
+          onChange={(e) => handleFilterChange('types', e.target.value)}
+        >
+          <option value="">All Types</option>
+          <option value="address">Addresses</option>
+          <option value="poi">Points of Interest</option>
+          <option value="postcode">Postal Codes</option>
+        </select>
+      </div>
+    </div>
+  );
+}
+```
+
+## Best Practices
+
+### 1. Performance Optimization
+- Implement proper debouncing for search inputs
+- Use React.memo for components that don't need frequent re-renders
+- Implement virtual scrolling for large result sets
+- Cache search results to avoid redundant API calls
+
+### 2. Error Handling
+- Implement retry logic for failed requests
+- Show user-friendly error messages
+- Handle network connectivity issues
+- Implement fallback geocoding services
+
+### 3. Accessibility
+- Add proper ARIA labels and roles
+- Ensure keyboard navigation works
+- Provide screen reader support
+- Use semantic HTML elements
+
+### 4. Mobile Responsiveness
+- Implement touch-friendly interfaces
+- Handle different screen sizes
+- Consider mobile-specific interactions
+- Optimize for slower network connections
+
+### 5. Security
+- Validate and sanitize user inputs
+- Implement rate limiting
+- Use HTTPS for all API calls
+- Keep API keys secure (use environment variables)
+
+### 6. Testing
+```jsx
+// Example test for SearchBar component
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import SearchBar from '../SearchBar';
+
+test('should call onSearch after debounce delay', async () => {
+  const mockOnSearch = jest.fn();
+  render(<SearchBar onSearch={mockOnSearch} />);
+  
+  const input = screen.getByPlaceholderText('Search for places...');
+  fireEvent.change(input, { target: { value: 'New York' } });
+  
+  await waitFor(() => {
+    expect(mockOnSearch).toHaveBeenCalledWith('New York');
+  }, { timeout: 500 });
+});
+```
+
+This comprehensive guide provides everything you need to build a professional geocoding feature with react-map-gl. The implementation includes search functionality, pagination, interactive maps, and many advanced features that create a great user experience.

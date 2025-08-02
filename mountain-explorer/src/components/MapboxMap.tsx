@@ -32,6 +32,7 @@ export default function MapboxMap({ className = '' }: MapboxMapProps) {
       zoom: 12,
       pitch: 45, // Add some tilt for a more dynamic view
       bearing: 0
+      interactive: true,
     });
 
     // Add navigation controls

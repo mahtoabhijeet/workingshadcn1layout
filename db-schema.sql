@@ -114,6 +114,14 @@ CREATE TABLE story_images (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Overpass Queries table
+CREATE TABLE overpass_queries (
+    id TEXT PRIMARY KEY,
+    query_text TEXT NOT NULL,
+    geojson_result TEXT NOT NULL, -- Store GeoJSON as text
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create indexes for better performance
 CREATE INDEX idx_peaks_location ON peaks(latitude, longitude);
 CREATE INDEX idx_trails_location ON trails(start_latitude, start_longitude);
@@ -128,6 +136,7 @@ CREATE INDEX idx_user_peaks_user ON user_peaks(user_id);
 CREATE INDEX idx_user_trails_user ON user_trails(user_id);
 CREATE INDEX idx_expedition_participants_expedition ON expedition_participants(expedition_id);
 CREATE INDEX idx_expedition_participants_user ON expedition_participants(user_id);
+CREATE INDEX idx_overpass_queries_created_at ON overpass_queries(created_at);
 
 -- Insert some sample data
 INSERT INTO peaks (id, name, elevation, latitude, longitude, difficulty, description) VALUES

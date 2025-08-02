@@ -3,31 +3,53 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Search, Mountain, Route, MapPin, Camera, Compass, User, LogIn } from "lucide-react";
-import { usePeaks, useTrails, useStories, useExpeditions, useSearch } from "@/hooks/useSupabase";
+import { Search, Mountain, Route, Camera, Compass, User, LogIn } from "lucide-react";
+import { usePeaks, useTrails, useStories, useExpeditions } from "@/hooks/useSupabase";
 import { useAuth } from "@/hooks/useAuth";
 import { isSupabaseReady } from "@/lib/supabase";
 import MapboxMap from "@/components/MapboxMap";
 import DynamicPanel from "@/components/DynamicPanel";
+import AdminPanel from "@/components/AdminPanel";
+import MapBottomDrawer from "@/components/MapBottomDrawer";
+import { Article, Trek, MOCK_ARTICLES } from "@/lib/data";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState("stories");
   const [searchQuery, setSearchQuery] = useState("");
+  const [isDrawerOpen, setDrawerOpen] = useState(false);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [selectedTrek, setSelectedTrek] = useState<Trek | null>(null);
+  const [isMapBottomDrawerOpen, setMapBottomDrawerOpen] = useState(false);
+
   const { user, loading: authLoading } = useAuth();
-  const { data: peaks, loading: peaksLoading } = usePeaks();
-  const { data: trails, loading: trailsLoading } = useTrails();
-  const { data: stories, loading: storiesLoading } = useStories();
-  const { data: expeditions, loading: expeditionsLoading } = useExpeditions();
-  const { results: searchResults, loading: searchLoading } = useSearch(searchQuery);
+  const { data: peaks } = usePeaks();
+  const { data: trails } = useTrails();
+  const { data: stories } = useStories();
+  const { data: expeditions } = useExpeditions();
 
   const peakCount = peaks?.length || 0;
   const trailCount = trails?.length || 0;
   const storyCount = stories?.length || 0;
   const expeditionCount = expeditions?.length || 0;
 
-  const isLoading = peaksLoading || trailsLoading || storiesLoading || expeditionsLoading;
   const supabaseConfigured = isSupabaseReady();
+
+  const handleTabClick = (tab: string) => {
+    setActiveTab(tab);
+    setDrawerOpen(true);
+    setSelectedTrek(null);
+    setMapBottomDrawerOpen(false);
+  };
+
+  const handleTrekSelect = (trek: Trek) => {
+    setSelectedTrek(trek);
+    setMapBottomDrawerOpen(true);
+  };
+
+  const handleMapBottomDrawerClose = () => {
+    setMapBottomDrawerOpen(false);
+    setSelectedTrek(null);
+  };
 
   // Show configuration message if Supabase is not set up
   if (!supabaseConfigured) {
@@ -58,266 +80,12 @@ export default function Home() {
     );
   }
 
-  const getTabContent = () => {
-    if (searchQuery.trim()) {
-      return (
-        <div className="p-6">
-          <h2 className="text-xl font-semibold mb-4">Search Results for &ldquo;{searchQuery}&rdquo;</h2>
-          {searchLoading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
-              <p className="mt-2 text-gray-500">Searching...</p>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {searchResults.peaks.length > 0 && (
-                <div>
-                  <h3 className="font-medium text-gray-900 mb-2">Peaks ({searchResults.peaks.length})</h3>
-                  <div className="space-y-2">
-                    {searchResults.peaks.map((peak) => (
-                      <div key={peak.id} className="p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-medium">{peak.name}</h4>
-                          <Badge variant="outline">{peak.elevation}m</Badge>
-                        </div>
-                        {peak.description && (
-                          <p className="text-sm text-gray-600 mt-1">{peak.description}</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {searchResults.trails.length > 0 && (
-                <div>
-                  <h3 className="font-medium text-gray-900 mb-2">Trails ({searchResults.trails.length})</h3>
-                  <div className="space-y-2">
-                    {searchResults.trails.map((trail) => (
-                      <div key={trail.id} className="p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-medium">{trail.name}</h4>
-                          <Badge variant="outline">{trail.distance}km</Badge>
-                        </div>
-                        {trail.description && (
-                          <p className="text-sm text-gray-600 mt-1">{trail.description}</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {searchResults.stories.length > 0 && (
-                <div>
-                  <h3 className="font-medium text-gray-900 mb-2">Stories ({searchResults.stories.length})</h3>
-                  <div className="space-y-2">
-                    {searchResults.stories.map((story) => (
-                      <div key={story.id} className="p-3 bg-gray-50 rounded-lg">
-                        <h4 className="font-medium">{story.title}</h4>
-                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">{story.content}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {searchResults.expeditions.length > 0 && (
-                <div>
-                  <h3 className="font-medium text-gray-900 mb-2">Expeditions ({searchResults.expeditions.length})</h3>
-                  <div className="space-y-2">
-                    {searchResults.expeditions.map((expedition) => (
-                      <div key={expedition.id} className="p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-medium">{expedition.name}</h4>
-                          <Badge variant="outline">{expedition.status}</Badge>
-                        </div>
-                        <p className="text-sm text-gray-600 mt-1">{expedition.description}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {searchResults.peaks.length === 0 && 
-               searchResults.trails.length === 0 && 
-               searchResults.stories.length === 0 && 
-               searchResults.expeditions.length === 0 && (
-                <div className="text-center py-8">
-                  <p className="text-gray-500">No results found for &ldquo;{searchQuery}&rdquo;</p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    switch (activeTab) {
-      case "peaks":
-        return (
-          <div className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Mountain Peaks</h2>
-            {isLoading ? (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
-                <p className="mt-2 text-gray-500">Loading peaks...</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {peaks?.map((peak) => (
-                  <div key={peak.id} className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-semibold text-lg">{peak.name}</h3>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline">{peak.elevation}m</Badge>
-                        <Badge 
-                          variant={peak.difficulty === 'extreme' ? 'destructive' : 
-                                 peak.difficulty === 'hard' ? 'secondary' : 'default'}
-                        >
-                          {peak.difficulty}
-                        </Badge>
-                      </div>
-                    </div>
-                    {peak.description && (
-                      <p className="text-gray-600 text-sm">{peak.description}</p>
-                    )}
-                    <div className="flex items-center gap-4 mt-3 text-sm text-gray-500">
-                      <span>📍 {peak.latitude.toFixed(4)}, {peak.longitude.toFixed(4)}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-
-      case "trails":
-        return (
-          <div className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Hiking Trails</h2>
-            {isLoading ? (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
-                <p className="mt-2 text-gray-500">Loading trails...</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {trails?.map((trail) => (
-                  <div key={trail.id} className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-semibold text-lg">{trail.name}</h3>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline">{trail.distance}km</Badge>
-                        <Badge 
-                          variant={trail.difficulty === 'extreme' ? 'destructive' : 
-                                 trail.difficulty === 'hard' ? 'secondary' : 'default'}
-                        >
-                          {trail.difficulty}
-                        </Badge>
-                      </div>
-                    </div>
-                    {trail.description && (
-                      <p className="text-gray-600 text-sm mb-3">{trail.description}</p>
-                    )}
-                    <div className="flex items-center gap-4 text-sm text-gray-500">
-                      <span>⏱️ {Math.floor(trail.duration / 60)}h {trail.duration % 60}m</span>
-                      <span>📈 +{trail.elevation_gain}m</span>
-                      {trail.peak && <span>🏔️ {trail.peak.name}</span>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-
-      case "stories":
-        return (
-          <div className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Adventure Stories</h2>
-            {isLoading ? (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
-                <p className="mt-2 text-gray-500">Loading stories...</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {stories?.map((story) => (
-                  <div key={story.id} className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
-                    <div className="flex items-start justify-between mb-2">
-                      <h3 className="font-semibold text-lg">{story.title}</h3>
-                      <span className="text-xs text-gray-500">
-                        {new Date(story.created_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <p className="text-gray-600 text-sm mb-3 line-clamp-3">{story.content}</p>
-                    <div className="flex items-center gap-4 text-sm text-gray-500">
-                      {story.author?.full_name && (
-                        <span>👤 {story.author.full_name}</span>
-                      )}
-                      {story.peak && <span>🏔️ {story.peak.name}</span>}
-                      {story.trail && <span>🥾 {story.trail.name}</span>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-
-      case "expeditions":
-        return (
-          <div className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Expeditions</h2>
-            {isLoading ? (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
-                <p className="mt-2 text-gray-500">Loading expeditions...</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {expeditions?.map((expedition) => (
-                  <div key={expedition.id} className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-semibold text-lg">{expedition.name}</h3>
-                      <div className="flex items-center gap-2">
-                        <Badge 
-                          variant={expedition.status === 'active' ? 'default' : 
-                                 expedition.status === 'completed' ? 'secondary' : 'outline'}
-                        >
-                          {expedition.status}
-                        </Badge>
-                        <Badge variant="outline">
-                          {expedition.current_participants}/{expedition.max_participants}
-                        </Badge>
-                      </div>
-                    </div>
-                    <p className="text-gray-600 text-sm mb-3">{expedition.description}</p>
-                    <div className="flex items-center gap-4 text-sm text-gray-500">
-                      <span>📅 {new Date(expedition.start_date).toLocaleDateString()} - {new Date(expedition.end_date).toLocaleDateString()}</span>
-                      {expedition.organizer?.full_name && (
-                        <span>👤 {expedition.organizer.full_name}</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-
-      default:
-        return null;
-    }
-  };
-
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-500">
       {/* Sidebar */}
-      <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
+      <div className="w-64 bg-white border-r border-gray-800 flex flex-col">
         {/* Header */}
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-6 border-b border-gray-800">
           <div className="flex items-center gap-2 mb-6">
             <Mountain className="w-6 h-6 text-teal-600" />
             <div>
@@ -329,8 +97,8 @@ export default function Home() {
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input 
-              placeholder="Search peaks, trails, stories..." 
+            <Input
+              placeholder="Search peaks, trails, stories..."
               className="pl-10 bg-gray-50 border-gray-200"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -342,10 +110,10 @@ export default function Home() {
         <nav className="flex-1 p-4">
           <div className="space-y-2">
             <button
-              onClick={() => setActiveTab("trails")}
+              onClick={() => handleTabClick("trails")}
               className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
-                activeTab === "trails" 
-                  ? "bg-teal-50 text-teal-700 border border-teal-200" 
+                activeTab === "trails" && isDrawerOpen
+                  ? "bg-teal-50 text-teal-700 border border-teal-200"
                   : "text-gray-600 hover:bg-gray-50"
               }`}
             >
@@ -354,10 +122,10 @@ export default function Home() {
             </button>
             
             <button
-              onClick={() => setActiveTab("peaks")}
+              onClick={() => handleTabClick("peaks")}
               className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
-                activeTab === "peaks" 
-                  ? "bg-teal-50 text-teal-700 border border-teal-200" 
+                activeTab === "peaks" && isDrawerOpen
+                  ? "bg-teal-50 text-teal-700 border border-teal-200"
                   : "text-gray-600 hover:bg-gray-50"
               }`}
             >
@@ -366,10 +134,10 @@ export default function Home() {
             </button>
             
             <button
-              onClick={() => setActiveTab("stories")}
+              onClick={() => handleTabClick("stories")}
               className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
-                activeTab === "stories" 
-                  ? "bg-teal-50 text-teal-700 border border-teal-200" 
+                activeTab === "stories" && isDrawerOpen
+                  ? "bg-teal-50 text-teal-700 border border-teal-200"
                   : "text-gray-600 hover:bg-gray-50"
               }`}
             >
@@ -378,10 +146,10 @@ export default function Home() {
             </button>
             
             <button
-              onClick={() => setActiveTab("expeditions")}
+              onClick={() => handleTabClick("expeditions")}
               className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
-                activeTab === "expeditions" 
-                  ? "bg-teal-50 text-teal-700 border border-teal-200" 
+                activeTab === "expeditions" && isDrawerOpen
+                  ? "bg-teal-50 text-teal-700 border border-teal-200"
                   : "text-gray-600 hover:bg-gray-50"
               }`}
             >
@@ -417,7 +185,7 @@ export default function Home() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col relative">
         {/* Header */}
         <div className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
@@ -451,83 +219,34 @@ export default function Home() {
                 <Route className="w-4 h-4 mr-2" />
                 Route Planner
               </Button>
+              <Button variant="outline" size="sm" onClick={() => setShowAdminPanel(true)}>
+                Admin
+              </Button>
             </div>
           </div>
         </div>
 
-        {/* Content Area - Map with Dynamic Panels */}
-        <div className="flex-1 bg-gray-50 p-4">
-          <div className="h-full grid grid-cols-[70%_30%] grid-rows-[70%_30%] gap-4">
-            {/* Map Area - Takes up 70% width, 70% height */}
-            <div className="row-span-1 col-span-1">
-              <MapboxMap />
-            </div>
-            
-            {/* Right Panel - Takes up 30% width, full height */}
-            <div className="row-span-2 col-span-1">
-              <DynamicPanel 
-                title="Trail Information"
-                content={
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <Route className="w-4 h-4 text-teal-600" />
-                      <span className="text-sm font-medium">Active Trail</span>
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      <p>Select a trail from the map to view detailed information, elevation profile, and difficulty rating.</p>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Distance:</span>
-                        <span className="font-medium">--</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Elevation Gain:</span>
-                        <span className="font-medium">--</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Difficulty:</span>
-                        <span className="font-medium">--</span>
-                      </div>
-                    </div>
-                  </div>
-                }
-              />
-            </div>
-            
-            {/* Bottom Panel - Takes up 70% width, 30% height */}
-            <div className="row-span-1 col-span-1">
-              <DynamicPanel 
-                title="Peak Details"
-                content={
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <Mountain className="w-4 h-4 text-teal-600" />
-                      <span className="text-sm font-medium">Selected Peak</span>
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      <p>Click on a peak marker to view elevation, climbing routes, and weather conditions.</p>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4 text-sm">
-                      <div className="text-center">
-                        <div className="font-medium">--</div>
-                        <div className="text-gray-500">Elevation</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="font-medium">--</div>
-                        <div className="text-gray-500">Difficulty</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="font-medium">--</div>
-                        <div className="text-gray-500">Weather</div>
-                      </div>
-                    </div>
-                  </div>
-                }
-              />
-            </div>
+        {/* Content Area - Map */}
+        <div className="flex-1 bg-gray-50 flex gap-4">
+          <div className={`h-full transition-all duration-300 ${isDrawerOpen ? 'w-3/5' : 'w-full'}`}>
+            <MapboxMap selectedTrek={selectedTrek} isBottomDrawerOpen={isMapBottomDrawerOpen} />
           </div>
+          {isDrawerOpen && (
+            <div className="h-full w-2/5">
+              <DynamicPanel
+                activeTab={activeTab}
+                onTrekSelect={handleTrekSelect}
+              />
+            </div>
+          )}
+        <MapBottomDrawer
+          isOpen={isMapBottomDrawerOpen}
+          trek={selectedTrek}
+          onClose={handleMapBottomDrawerClose}
+          onTrekSelect={handleTrekSelect}
+        />
         </div>
+        <AdminPanel show={showAdminPanel} onClose={() => setShowAdminPanel(false)} />
       </div>
     </div>
   );
