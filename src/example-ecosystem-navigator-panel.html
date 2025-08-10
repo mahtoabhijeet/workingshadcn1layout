@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ecosystem Navigator</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #0a0a0a;
+            color: #ffffff;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .navigator-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .map-section {
+            height: 280px;
+            background: linear-gradient(135deg, #2d5016 0%, #1a3009 100%);
+            position: relative;
+            border-bottom: 1px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .map-title {
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: #888;
+            text-align: center;
+        }
+        
+        .map-subtitle {
+            font-size: 12px;
+            color: #666;
+            margin-top: 8px;
+        }
+        
+        .waypoint-panel {
+            background: #1a1a1a;
+            border-bottom: 1px solid #333;
+        }
+        
+        .panel-header {
+            padding: 16px 20px;
+            background: #151515;
+            border-bottom: 1px solid #333;
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: #888;
+        }
+        
+        .waypoint-card {
+            display: flex;
+            align-items: center;
+            padding: 16px 20px;
+            gap: 16px;
+            border-bottom: 1px solid #2a2a2a;
+            transition: background-color 0.2s ease;
+        }
+        
+        .waypoint-card:hover {
+            background: #222;
+        }
+        
+        .waypoint-icon {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        
+        .waypoint-title {
+            font-size: 16px;
+            font-weight: 500;
+            color: #fff;
+            margin-right: auto;
+        }
+        
+        .waypoint-stats {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            font-size: 13px;
+            color: #888;
+        }
+        
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .stat-icon {
+            width: 16px;
+            height: 16px;
+            opacity: 0.7;
+        }
+        
+        .details-section {
+            display: flex;
+            height: 200px;
+        }
+        
+        .thumbnail-area {
+            width: 300px;
+            background: #151515;
+            border-right: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+        
+        .thumbnail {
+            width: 80px;
+            height: 80px;
+            background: #2a2a2a;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        
+        .thumbnail-label {
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+        }
+        
+        .action-button {
+            font-size: 11px;
+            color: #888;
+            text-decoration: none;
+            padding: 6px 12px;
+            border: 1px solid #333;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            background: transparent;
+            cursor: pointer;
+        }
+        
+        .action-button:hover {
+            background: #333;
+            color: #fff;
+        }
+        
+        .info-area {
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        
+        .description {
+            font-size: 14px;
+            line-height: 1.5;
+            color: #ccc;
+        }
+        
+        .key-info {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #888;
+        }
+        
+        .info-icon {
+            width: 16px;
+            height: 16px;
+        }
+        
+        .progress-section {
+            padding: 20px;
+            background: #151515;
+            border-top: 1px solid #333;
+        }
+        
+        .progress-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+        
+        .progress-title {
+            font-size: 14px;
+            color: #888;
+        }
+        
+        .progress-status {
+            font-size: 14px;
+            color: #fff;
+            font-weight: 500;
+        }
+        
+        .progress-bar {
+            height: 4px;
+            background: #2a2a2a;
+            border-radius: 2px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4ade80, #22c55e);
+            width: 40%;
+            transition: width 0.3s ease;
+        }
+        
+        .progress-markers {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        
+        .marker {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #2a2a2a;
+            position: relative;
+            transition: all 0.2s ease;
+        }
+        
+        .marker.completed {
+            background: #22c55e;
+        }
+        
+        .marker.current {
+            background: #4ade80;
+            box-shadow: 0 0 12px rgba(74, 222, 128, 0.5);
+        }
+        
+        .marker-label {
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 11px;
+            color: #666;
+            white-space: nowrap;
+        }
+        
+        .navigation-buttons {
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: #2a2a2a;
+            border: 1px solid #333;
+            border-radius: 6px;
+            color: #ccc;
+            text-decoration: none;
+            font-size: 13px;
+            transition: all 0.2s ease;
+        }
+        
+        .nav-button:hover {
+            background: #333;
+            color: #fff;
+            border-color: #444;
+        }
+        
+        .nav-icon {
+            width: 16px;
+            height: 16px;
+        }
+        
+        .species-count {
+            background: #2d5016;
+            color: #4ade80;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        .biome-indicator {
+            background: #1e3a8a;
+            color: #60a5fa;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="navigator-container">
+        <!-- Map Section -->
+        <div class="map-section">
+            <div>
+                <div class="map-title">ECOSYSTEM MAP</div>
+                <div class="map-subtitle">2/3 height<br>(Interactive Biome View)</div>
+            </div>
+        </div>
+        
+        <!-- Waypoint Panel -->
+        <div class="waypoint-panel">
+            <div class="panel-header">ECOSYSTEM WAYPOINT PANEL</div>
+            
+            <div class="waypoint-card">
+                <div class="waypoint-icon">🌲</div>
+                <div class="waypoint-title">Temperate Forest</div>
+                <div class="waypoint-stats">
+                    <div class="stat-item">
+                        <span class="stat-icon">🌿</span>
+                        <span>2.4km²</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-icon">🦌</span>
+                        <span>0.8km</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-icon">⏱️</span>
+                        <span>45min</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="species-count">🦎 24</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="biome-indicator">🌡️ 1</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="species-count">📊 5</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Details Section -->
+        <div class="details-section">
+            <div class="thumbnail-area">
+                <div class="thumbnail">🌲</div>
+                <div class="thumbnail-label">[Latest Observation]</div>
+                <button class="action-button">[Thumbnail]</button>
+                <button class="action-button">[View Species Gallery]</button>
+            </div>
+            
+            <div class="info-area">
+                <div class="description">
+                    Diverse temperate forest ecosystem home to deciduous and coniferous species. 
+                    Rich biodiversity hotspot with established wildlife corridors. 
+                    Essential habitat for migratory species and endemic flora.
+                </div>
+                
+                <div class="key-info">
+                    <div class="info-item">
+                        <span class="info-icon">🕐</span>
+                        <span>Key Info: Peak activity 6-9 AM</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-icon">💧</span>
+                        <span>Fresh water sources available</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-icon">🌡️</span>
+                        <span>Climate zone: Temperate continental</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Progress Section -->
+        <div class="progress-section">
+            <div class="progress-header">
+                <div class="progress-title">Ecosystem Survey Progress:</div>
+                <div class="progress-status">2/5 Complete</div>
+            </div>
+            
+            <div class="progress-bar">
+                <div class="progress-fill"></div>
+            </div>
+            
+            <div class="progress-markers">
+                <div class="marker completed">
+                    <div class="marker-label">Forest</div>
+                </div>
+                <div class="marker current">
+                    <div class="marker-label">Wetland</div>
+                </div>
+                <div class="marker">
+                    <div class="marker-label">Grassland</div>
+                </div>
+                <div class="marker">
+                    <div class="marker-label">Ridge</div>
+                </div>
+                <div class="marker">
+                    <div class="marker-label">Valley</div>
+                </div>
+            </div>
+            
+            <div class="navigation-buttons">
+                <a href="#" class="nav-button">
+                    <span class="nav-icon">⬅️</span>
+                    <span>Back to Base</span>
+                </a>
+                <a href="#" class="nav-button">
+                    <span>Continue Survey</span>
+                    <span class="nav-icon">➡️</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Add some interactivity
+        document.addEventListener('DOMContentLoaded', function() {
+            const waypoint = document.querySelector('.waypoint-card');
+            const progressFill = document.querySelector('.progress-fill');
+            const markers = document.querySelectorAll('.marker');
+            
+            // Animate progress bar on load
+            setTimeout(() => {
+                progressFill.style.width = '40%';
+            }, 500);
+            
+            // Add click interactions to markers
+            markers.forEach((marker, index) => {
+                marker.addEventListener('click', function() {
+                    if (index <= 1) { // Only allow clicking on completed/current
+                        // Update progress
+                        const progress = ((index + 1) / markers.length) * 100;
+                        progressFill.style.width = progress + '%';
+                        
+                        // Update marker states
+                        markers.forEach((m, i) => {
+                            m.classList.remove('completed', 'current');
+                            if (i < index) m.classList.add('completed');
+                            if (i === index) m.classList.add('current');
+                        });
+                        
+                        // Update status text
+                        document.querySelector('.progress-status').textContent = `${index + 1}/5 Complete`;
+                    }
+                });
+            });
+            
+            // Add hover effects
+            const actionButtons = document.querySelectorAll('.action-button');
+            actionButtons.forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    this.style.background = '#4ade80';
+                    this.style.color = '#000';
+                    setTimeout(() => {
+                        this.style.background = 'transparent';
+                        this.style.color = '#888';
+                    }, 200);
+                });
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Your Next.js config here
+  transpilePackages: ['react-map-gl'],
 };
 
 module.exports = nextConfig;

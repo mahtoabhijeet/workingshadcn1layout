@@ -19,9 +19,10 @@ function DialogTrigger({
 }
 
 function DialogPortal({
+  container,
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Portal>) {
-  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
+}: React.ComponentProps<typeof DialogPrimitive.Portal> & { container?: HTMLElement | null }) {
+  return <DialogPrimitive.Portal data-slot="dialog-portal" container={container} {...props} />
 }
 
 function DialogClose({
@@ -50,12 +51,14 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  container, // Accept container prop
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
-  showCloseButton?: boolean
+  showCloseButton?: boolean;
+  container?: HTMLElement | null; // Add container to props
 }) {
   return (
-    <DialogPortal data-slot="dialog-portal">
+    <DialogPortal data-slot="dialog-portal" container={container}> {/* Pass container to DialogPortal */}
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"

@@ -72,7 +72,7 @@ export default function MainDrawer({ isOpen, onClose, article, onTrekSelect }: M
     <div className="fixed inset-0 z-50 bg-black/50 flex justify-end animate-in fade-in-0">
       <div
         ref={drawerRef}
-        className="w-full md:w-2/3 lg:w-1/2 xl:w-2/5 bg-white shadow-lg flex flex-col animate-in slide-in-from-right-full duration-300"
+        className="w-full md:w-1/2 lg:w-1/3 xl:w-1/4 bg-white shadow-lg flex flex-col animate-in slide-in-from-right-full duration-300"
         onClick={(e) => e.stopPropagation()} // Prevent click outside from closing when clicking inside
       >
         {/* Header */}

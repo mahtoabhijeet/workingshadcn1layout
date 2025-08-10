@@ -9,13 +9,12 @@ import { Article, Trek, MOCK_ARTICLES } from "@/lib/data";
 
 interface DynamicPanelProps {
   activeTab: string;
-  onTrekSelect: (trek: Trek) => void;
 }
 
 type ViewState = 'list' | 'detail';
 type ContentType = 'article' | 'trek';
 
-export default function DynamicPanel({ activeTab, onTrekSelect }: DynamicPanelProps) {
+export default function DynamicPanel({ activeTab }: DynamicPanelProps) {
   const [view, setView] = useState<ViewState>('list');
   const [selectedItem, setSelectedItem] = useState<Article | Trek | null>(null);
   const [contentType, setContentType] = useState<ContentType>('article');
@@ -27,9 +26,6 @@ export default function DynamicPanel({ activeTab, onTrekSelect }: DynamicPanelPr
     setSelectedItem(item);
     setContentType(type);
     setView('detail');
-    if (type === 'trek') {
-      onTrekSelect(item as Trek);
-    }
   };
 
   const handleBackClick = () => {

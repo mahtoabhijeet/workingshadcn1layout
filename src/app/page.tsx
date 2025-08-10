@@ -7,11 +7,11 @@ import { Search, Mountain, Route, Camera, Compass, User, LogIn } from "lucide-re
 import { usePeaks, useTrails, useStories, useExpeditions } from "@/hooks/useSupabase";
 import { useAuth } from "@/hooks/useAuth";
 import { isSupabaseReady } from "@/lib/supabase";
-import MapboxMap from "@/components/MapboxMap";
+import MapLibreMap from "@/components/MapLibreMap";
 import DynamicPanel from "@/components/DynamicPanel";
 import AdminPanel from "@/components/AdminPanel";
-import MapBottomDrawer from "@/components/MapBottomDrawer";
 import { Article, Trek, MOCK_ARTICLES } from "@/lib/data";
+import React from "react";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState("stories");
@@ -19,7 +19,6 @@ export default function Home() {
   const [isDrawerOpen, setDrawerOpen] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [selectedTrek, setSelectedTrek] = useState<Trek | null>(null);
-  const [isMapBottomDrawerOpen, setMapBottomDrawerOpen] = useState(false);
 
   const { user, loading: authLoading } = useAuth();
   const { data: peaks } = usePeaks();
@@ -38,18 +37,8 @@ export default function Home() {
     setActiveTab(tab);
     setDrawerOpen(true);
     setSelectedTrek(null);
-    setMapBottomDrawerOpen(false);
   };
 
-  const handleTrekSelect = (trek: Trek) => {
-    setSelectedTrek(trek);
-    setMapBottomDrawerOpen(true);
-  };
-
-  const handleMapBottomDrawerClose = () => {
-    setMapBottomDrawerOpen(false);
-    setSelectedTrek(null);
-  };
 
   // Show configuration message if Supabase is not set up
   if (!supabaseConfigured) {
@@ -229,22 +218,15 @@ export default function Home() {
         {/* Content Area - Map */}
         <div className="flex-1 bg-gray-50 flex gap-4">
           <div className={`h-full transition-all duration-300 ${isDrawerOpen ? 'w-3/5' : 'w-full'}`}>
-            <MapboxMap selectedTrek={selectedTrek} isBottomDrawerOpen={isMapBottomDrawerOpen} />
+            <MapLibreMap selectedTrek={selectedTrek} />
           </div>
           {isDrawerOpen && (
             <div className="h-full w-2/5">
               <DynamicPanel
                 activeTab={activeTab}
-                onTrekSelect={handleTrekSelect}
               />
             </div>
           )}
-        <MapBottomDrawer
-          isOpen={isMapBottomDrawerOpen}
-          trek={selectedTrek}
-          onClose={handleMapBottomDrawerClose}
-          onTrekSelect={handleTrekSelect}
-        />
         </div>
         <AdminPanel show={showAdminPanel} onClose={() => setShowAdminPanel(false)} />
       </div>
